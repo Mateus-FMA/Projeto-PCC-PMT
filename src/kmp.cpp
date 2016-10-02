@@ -17,7 +17,7 @@ std::vector<int> ComputeStrictBorderTable(const std::string &pattern) {
     }
 
     ++t;
-    // If pattern[t + 1] != pattern[j], then the longest strict border of pattern[:j] is t
+    // If pattern[t + 1] != pattern[j + 1], then the longest strict border of pattern[:j + 1] is t
     // itself; otherwise, it is the previous longest strict border.
     if (pattern[t + 1] != pattern[j + 1]) {
       s_bord[j + 1] = t;
@@ -32,7 +32,7 @@ std::vector<int> ComputeStrictBorderTable(const std::string &pattern) {
 }
 
 std::vector<int> KMPStringMatcher(const std::string &pattern, const std::string &text,
-																	const std::vector<int> &s_bord) {
+                                  const std::vector<int> &s_bord) {
   int m = static_cast<int>(pattern.size());
   int n = static_cast<int>(text.size());
 

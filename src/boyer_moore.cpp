@@ -51,23 +51,23 @@ std::vector<int> ComputeGoodSuffixTable(const std::string &pattern) {
 
     while (s < max_shift) {
       if (s < j && pattern[j - s] == pattern[j]) {
-	      ++s;
-	      continue;			
+        ++s;
+        continue;			
       }
 
       int k = j + 1;
 
       while (k < m) {
-	      if (s < k && pattern[k - s] != pattern[k]) {
-		      ++s;
-		      break;
-	      }
+        if (s < k && pattern[k - s] != pattern[k]) {
+          ++s;
+          break;
+        }
 
-	      ++k;
+        ++k;
       }
 
       if (k == m) {
-	      break;			
+        break;			
       }
     }
 
@@ -80,7 +80,7 @@ std::vector<int> ComputeGoodSuffixTable(const std::string &pattern) {
 // TODO(Mateus): implementar esta função de tal modo que se aceite caracteres fora do alfabeto
 // ASCII.
 std::unordered_map<char, int> ComputeBadCharacterTable(const std::string &pattern,
-																											 const std::string &alphabet) {
+                                                       const std::string &alphabet) {
   std::unordered_map<char, int> bad_character;
 
   for (size_t i = 0; i < alphabet.size(); ++i) {
@@ -95,8 +95,8 @@ std::unordered_map<char, int> ComputeBadCharacterTable(const std::string &patter
 }
 
 std::vector<int> BoyerMooreStringMatcher(const std::string &pattern, const std::string &text,
-																				 const std::unordered_map<char, int> &bad_character,
-																				 const std::vector<int> &good_suffix) {
+                                         const std::unordered_map<char, int> &bad_character,
+                                         const std::vector<int> &good_suffix) {
   int m = static_cast<int>(pattern.size());
   int n = static_cast<int>(text.size());
 

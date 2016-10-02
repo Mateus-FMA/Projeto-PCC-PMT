@@ -8,7 +8,7 @@ namespace pmt {
 
 std::vector<int> KMPStringMatcher(const std::string &pattern, const std::string &text);
 std::vector<int> KMPMultiStringMatcher(const std::string &pattern,
-																			 const std::vector<std::string> &text_list);
+                                       const std::vector<std::string> &text_list);
 
 }  // namespace pmt
 

@@ -8,7 +8,7 @@ namespace pmt {
 
 std::vector<int> BoyerMooreStringMatcher(const std::string &pattern, const std::string &text);
 std::vector<int> BoyerMooreMultiStringMatcher(const std::string &pattern,
-																						  const std::vector<std::string> &text);
+                                              const std::vector<std::string> &text);
 
 }
 

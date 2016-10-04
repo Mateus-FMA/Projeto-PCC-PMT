@@ -1,0 +1,5 @@
+# depslib dependency file v1.0
+1471886487 source:c:\users\valdemir\workspace\brute_force\main.cpp
+	<iostream>
+	<bits/stdc++.h>
+

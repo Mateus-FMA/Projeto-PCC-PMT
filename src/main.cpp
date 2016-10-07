@@ -29,10 +29,12 @@ int main() {
   std::vector<int> bf_occurrences = pmt::BruteForceStringMatcher(pattern, text);
   std::vector<int> kmp_occurrences = pmt::KMPStringMatcher(pattern, text);
   std::vector<int> bm_occurrences = pmt::BoyerMooreStringMatcher(pattern, text);
+  std::vector<int> sel_occurrences = pmt::SellersStringMatcher(pattern, text);
 
   std::cout << PrintOccurrences(bf_occurrences) << std::endl;
   std::cout << PrintOccurrences(kmp_occurrences) << std::endl;
   std::cout << PrintOccurrences(bm_occurrences) << std::endl;
+  std::cout << PrintOccurrences(sel_occurrences) << std::endl;
 
   return 0;
 }

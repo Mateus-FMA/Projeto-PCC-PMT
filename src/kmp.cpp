@@ -12,21 +12,21 @@ std::vector<int> ComputeStrictBorderTable(const std::string &pattern) {
 
   for (int j = 0; j < m - 1; ++j) {
     // Same (initial) idea as the sub-routine ComputeBorderTable on boyer_moore.cpp.
-    while (t >= 0 && pattern[t + 1] != pattern[j]) {
+    while (t >= 0 && pattern[t] != pattern[j]) {
       t = s_bord[t];
     }
 
     ++t;
-    // If pattern[t + 1] != pattern[j + 1], then the longest strict border of pattern[:j + 1] is t
+    // If pattern[t] != pattern[j + 1], then the longest strict border of pattern[:j + 1] is t
     // itself; otherwise, it is the previous longest strict border.
-    if (pattern[t + 1] != pattern[j + 1]) {
+    if (pattern[t] != pattern[j + 1]) {
       s_bord[j + 1] = t;
     } else {
       s_bord[j + 1] = s_bord[t];
     }
   }
 
-  s_bord[m] = t;
+  s_bord[m] = t + 1;
 
   return s_bord;
 }
@@ -59,7 +59,10 @@ std::vector<int> KMPStringMatcher(const std::string &pattern, const std::string 
 }  // namespace
 
 std::vector<int> KMPStringMatcher(const std::string &pattern, const std::string &text) {
-  return KMPStringMatcher(pattern, text, ComputeStrictBorderTable(pattern));
+  std::vector<int> s_bord = ComputeStrictBorderTable(pattern);
+  for (size_t i = 0; i < s_bord.size(); ++i) std::cout << s_bord[i] << std::endl;
+
+  return KMPStringMatcher(pattern, text, s_bord);
 }
 
 std::vector<int> KMPMultiStringMatcher(const std::string &pattern,

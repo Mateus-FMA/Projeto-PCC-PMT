@@ -20,7 +20,6 @@ std::string RemoveRepeatedLetters(const std::string &str) {
 std::vector<int> ComputeBorderTable(const std::string &pattern) {
   int m = static_cast<int>(pattern.size());
   std::vector<int> bord(m + 1, -1);
-  int t = -1;
 
   for (int j = 0; j < m; ++j) {
     // By induction, one may prove that the sequence of all borders of a string x is
@@ -29,12 +28,12 @@ std::vector<int> ComputeBorderTable(const std::string &pattern) {
     // t + 1, where t = bord^k[j + 1] and k is the smallest positive integer such that
     // pattern[Bord^k[j + 1] + 1] = pattern[j], j = 0, ... , m - 1. Note that bord[0] = -1, for all
     // strings x.
-    while (t >= 0 && pattern[t + 1] != pattern[j]) {
+    int t = bord[j];
+    while (t >= 0 && pattern[t] != pattern[j]) {
       t = bord[t];
     }
 
-    ++t;
-    bord[j + 1] = t;
+    bord[j + 1] = t + 1;
   }
 
   return bord;
@@ -42,39 +41,45 @@ std::vector<int> ComputeBorderTable(const std::string &pattern) {
 
 std::vector<int> ComputeGoodSuffixTable(const std::string &pattern) {
   int m = static_cast<int>(pattern.size());
-  std::vector<int> bord = ComputeBorderTable(pattern);
-  const int max_shift = m - bord[m];
-  std::vector<int> good_shift(m + 1, max_shift);
+  std::string pattern_r(pattern);
 
-  for (int j = 0; j < m; ++j) {
-    int s = 1;
+  std::reverse(pattern_r.begin(), pattern_r.end());
 
-    while (s < max_shift) {
-      if (s < j && pattern[j - s] == pattern[j]) {
-        ++s;
-        continue;			
-      }
+  std::vector<int> bord_r = ComputeBorderTable(pattern_r);
+  std::vector<int> good_suffix(m + 1, m + 1);
 
-      int k = j + 1;
+  // Preprocessing 1 - find the length N of the LCS between pattern[:j] and pattern. If it exists,
+  // then N = m - l + bord_r[l], 1 <= l < m, and good_shift[j] = m - N (where j = m -  bord_r[l])
+  // if, and only if, pattern[j - (m - N) - 1] != pattern[j - 1].
+  for (int l = 1; l < m; ++l) {
+    int j = m - bord_r[l];
+    int s = l - bord_r[l];
 
-      while (k < m) {
-        if (s < k && pattern[k - s] != pattern[k]) {
-          ++s;
-          break;
-        }
-
-        ++k;
-      }
-
-      if (k == m) {
-        break;			
-      }
+    if (pattern[j - s - 1] != pattern[j - 1]) {
+      good_suffix[j] = good_suffix[j] < s ? good_suffix[j] : s;
     }
-
-    good_shift[j + 1] = s;
   }
 
-  return good_shift;
+  // Preprocessing 2 - if there's not a common suffix between pattern[:j] and pattern, then we must
+  // get the maximum proper prefix of pattern (let Q be this prefix) such that Q is a suffix of
+  // pattern[j:], j = 0, ... , m - 1. We know that Q is a border of pattern (it is a prefix and a
+  // suffix of pattern). It then follows that Q = bord^k(pattern_r) for some positive integer k.
+  // Finally, we have that good_suffix[j] = m - |Q|.
+  int t = bord_r[m];
+  int q = 0;
+
+  while (t >= 0) {
+    int s = m - t;
+
+    for (int j = q; j <= s; ++j) {
+      good_suffix[j] = good_suffix[j] < s ? good_suffix[j] : s; 
+    }
+
+    q = s + 1;
+    t = bord_r[t];
+  }
+
+  return good_suffix;
 }
 
 // TODO(Mateus): implementar esta função de tal modo que se aceite caracteres fora do alfabeto
@@ -114,7 +119,7 @@ std::vector<int> BoyerMooreStringMatcher(const std::string &pattern, const std::
       occurrences.push_back(i);
       i += good_suffix[0];
     } else {
-      int gs_shift = good_suffix[j];
+      int gs_shift = good_suffix[j + 1];
       int bc_shift = j - bad_character.at(text[i + j]);
       i += gs_shift > bc_shift ? gs_shift : bc_shift;
     }

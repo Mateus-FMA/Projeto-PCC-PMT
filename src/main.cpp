@@ -7,6 +7,7 @@
 #include "boyer_moore.h"
 #include "brute_force.h"
 #include "kmp.h"
+#include "ukkonen.h"
 
 std::string PrintOccurrences(const std::vector<int> &occurrences) {
   std::ostringstream oss;
@@ -29,12 +30,12 @@ int main() {
   std::vector<int> bf_occurrences = pmt::BruteForceStringMatcher(pattern, text);
   std::vector<int> kmp_occurrences = pmt::KMPStringMatcher(pattern, text);
   std::vector<int> bm_occurrences = pmt::BoyerMooreStringMatcher(pattern, text);
-  std::vector<int> sel_occurrences = pmt::SellersStringMatcher(pattern, text);
+  std::vector<int> ukk_occurrences = pmt::UkkonenStringMatcher(pattern, text, 0);
 
   std::cout << PrintOccurrences(bf_occurrences) << std::endl;
   std::cout << PrintOccurrences(kmp_occurrences) << std::endl;
   std::cout << PrintOccurrences(bm_occurrences) << std::endl;
-  std::cout << PrintOccurrences(sel_occurrences) << std::endl;
+  std::cout << PrintOccurrences(ukk_occurrences) << std::endl;
 
   return 0;
 }

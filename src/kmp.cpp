@@ -59,10 +59,7 @@ std::vector<int> KMPStringMatcher(const std::string &pattern, const std::string 
 }  // namespace
 
 std::vector<int> KMPStringMatcher(const std::string &pattern, const std::string &text) {
-  std::vector<int> s_bord = ComputeStrictBorderTable(pattern);
-  for (size_t i = 0; i < s_bord.size(); ++i) std::cout << s_bord[i] << std::endl;
-
-  return KMPStringMatcher(pattern, text, s_bord);
+  return KMPStringMatcher(pattern, text, ComputeStrictBorderTable(pattern));
 }
 
 std::vector<int> KMPMultiStringMatcher(const std::string &pattern,

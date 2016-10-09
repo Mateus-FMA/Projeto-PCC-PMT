@@ -11,12 +11,10 @@ namespace pmt {
 namespace {
 
 // TODO(Mateus): although this solution is better than a sequential search on a vector/list on
-// average, it is still very prone to collisions. Since it's declared on an anonymous namespace,
-// there is no need of type checking.
+// average, it is still very prone to collisions.
 struct PairHash {
-  template <typename T1, typename T2>
-  size_t operator() (const std::pair<T1, T2> &p) const {
-    return std::hash<T1>()(p.first) ^ std::hash<T2>()(p.second);
+  size_t operator() (const std::pair<int, char> &p) const {
+    return std::hash<int>()(p.first) ^ std::hash<char>()(p.second);
   }
 };
 

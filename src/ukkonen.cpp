@@ -45,7 +45,7 @@ class UkkonenTernaryTree {
   UkkonenTernaryTree() : root_(nullptr), num_states_(0) {}
   ~UkkonenTernaryTree() { delete root_; }
 
-  void InsertState(const std::vector<int> &state) {
+  UkkonenTTreeNode* InsertState(const std::vector<int> &state) {
     if (!state.empty() && !root_) {
       root_ = new UkkonenTTreeNode();
     }
@@ -66,10 +66,10 @@ class UkkonenTernaryTree {
       }
     }
 
-    if (current) {
-      current->state = state;
-      current->label = num_states_++;
-    }
+    current->state = state;
+    current->label = num_states_++;
+
+    return current;
   }
 
   UkkonenTTreeNode* SearchState(const std::vector<int> &state) const {
@@ -129,12 +129,11 @@ void BuildUkkonenAFD(const std::string &pattern, const std::string &text, int ma
   std::string alphabet = RemoveRepeatedLetters(pattern + text);
   std::vector<int> current(m + 1);
   std::vector<int> next(m + 1, 0);
-  UkkonenTernaryTree Q;
 
   std::iota(current.begin(), current.end(), 0);
-  Q.InsertState(current);
 
-  std::deque<UkkonenTTreeNode*> N(1, Q.SearchState(current));
+  UkkonenTernaryTree Q;
+  std::deque<UkkonenTTreeNode*> N(1, Q.InsertState(current));
   int i = 0;
 
   while (!N.empty()) {
@@ -147,8 +146,7 @@ void BuildUkkonenAFD(const std::string &pattern, const std::string &text, int ma
       UkkonenTTreeNode *next_node = Q.SearchState(next);
 
       if (!next_node) {
-        Q.InsertState(next);
-        N.push_back(Q.SearchState(next));
+        N.push_back(Q.InsertState(next));
         ++i;
 
         if (next[m] <= max_edit_distance) {

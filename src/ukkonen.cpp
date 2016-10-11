@@ -127,29 +127,27 @@ void BuildUkkonenAFD(const std::string &pattern, const std::string &text, int ma
   }
 
   std::string alphabet = RemoveRepeatedLetters(pattern + text);
-  std::vector<int> current(m + 1);
-  std::vector<int> next(m + 1, 0);
+  std::vector<int> state(m + 1);
 
-  std::iota(current.begin(), current.end(), 0);
+  std::iota(state.begin(), state.end(), 0);
 
   UkkonenTernaryTree Q;
-  std::deque<UkkonenTTreeNode*> N(1, Q.InsertState(current));
+  std::deque<UkkonenTTreeNode*> N(1, Q.InsertState(state));
   int i = 0;
 
   while (!N.empty()) {
     UkkonenTTreeNode *node = N.front();
     N.pop_front();
-    std::copy(node->state.begin(), node->state.end(), current.begin());
 
     for (size_t j = 0; j < alphabet.size(); ++j) {
-      NextColumn(current, pattern, alphabet[j], max_edit_distance, &next);
-      UkkonenTTreeNode *next_node = Q.SearchState(next);
+      NextColumn(node->state, pattern, alphabet[j], max_edit_distance, &state);
+      UkkonenTTreeNode *next_node = Q.SearchState(state);
 
       if (!next_node) {
-        N.push_back(Q.InsertState(next));
+        N.push_back(Q.InsertState(state));
         ++i;
 
-        if (next[m] <= max_edit_distance) {
+        if (state[m] <= max_edit_distance) {
           final_states->insert(i);
         }
 

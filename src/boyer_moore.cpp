@@ -1,21 +1,12 @@
 #include "boyer_moore.h"
 
 #include <algorithm>
-#include <iterator>
-#include <sstream>
 #include <unordered_map>
+
+#include "utils.h"
 
 namespace pmt {
 namespace {
-
-std::string RemoveRepeatedLetters(const std::string &str) {
-  std::unordered_map<char, int> container;
-  std::ostringstream oss;
-  std::copy_if(str.begin(), str.end(), std::ostream_iterator<char>(oss),
-               [&container] (char c) -> bool { return container[c]++ == 0; });
-
-  return oss.str();
-}
 
 std::vector<int> ComputeBorderTable(const std::string &pattern) {
   int m = static_cast<int>(pattern.size());
@@ -82,8 +73,8 @@ std::vector<int> ComputeGoodSuffixTable(const std::string &pattern) {
   return good_suffix;
 }
 
-// TODO(Mateus): implementar esta função de tal modo que se aceite caracteres fora do alfabeto
-// ASCII.
+// TODO(Mateus): implement this function so it may support non-ASCII characters. Must also find
+// a more elegant way to write this, if possible...
 std::unordered_map<char, int> ComputeBadCharacterTable(const std::string &pattern,
                                                        const std::string &alphabet) {
   std::unordered_map<char, int> bad_character;

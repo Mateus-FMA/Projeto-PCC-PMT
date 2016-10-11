@@ -4,7 +4,7 @@ INCLUDE_DIR = include
 OBJ_DIR = bin
 SRC_DIR = src
 
-_OBJS = boyer_moore.o brute_force.o kmp.o main.o ukkonen.o
+_OBJS = boyer_moore.o brute_force.o kmp.o main.o ukkonen.o utils.o
 OBJS = $(patsubst %, $(OBJ_DIR)/%, $(_OBJS))
 
 pmt: $(OBJS)
@@ -16,6 +16,6 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 
 .PHONY: clean_obj
 
-clean_obj:
+clean:
 	rm -rf $(OBJ_DIR)
 

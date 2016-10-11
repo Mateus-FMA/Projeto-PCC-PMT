@@ -2,24 +2,30 @@
 
 #include <algorithm>
 #include <array>
+#include <deque>
 #include <functional>
+#include <numeric>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+
+#include "utils.h"
 
 namespace pmt {
 namespace {
 
 // TODO(Mateus): although this solution is better than a sequential search on a vector/list on
-// average, it is still very prone to collisions.
+// average, it is still very prone to collisions. Check better implementations later.
 struct PairHash {
   size_t operator() (const std::pair<int, char> &p) const {
     return std::hash<int>()(p.first) ^ std::hash<char>()(p.second);
   }
 };
 
+const int kNonLeafNode = -1;
+
 struct UkkonenTTreeNode {
-  UkkonenTTreeNode() : left(nullptr), mid(nullptr), right(nullptr) {}
+  UkkonenTTreeNode() : left(nullptr), mid(nullptr), right(nullptr), label(kNonLeafNode) {}
   ~UkkonenTTreeNode() {
     delete left;
     delete mid;
@@ -29,11 +35,14 @@ struct UkkonenTTreeNode {
   UkkonenTTreeNode *left;
   UkkonenTTreeNode *mid;
   UkkonenTTreeNode *right;
+
+  int label;
+  std::vector<int> state;
 };
 
 class UkkonenTernaryTree {
  public:
-  UkkonenTernaryTree() : root_(nullptr) {}
+  UkkonenTernaryTree() : root_(nullptr), num_states_(0) {}
   ~UkkonenTernaryTree() { delete root_; }
 
   void InsertState(const std::vector<int> &state) {
@@ -56,10 +65,17 @@ class UkkonenTernaryTree {
         current = current->right;
       }
     }
+
+    if (current) {
+      current->state = state;
+      current->label = num_states_++;
+    }
   }
 
-  bool Contains(const std::vector<int> &state) {
-    if (!root_) return false;
+  UkkonenTTreeNode* SearchState(const std::vector<int> &state) const {
+    if (!root_) {
+      return nullptr;
+    }
 
     UkkonenTTreeNode *current = root_;
     for (size_t i = 1; i < state.size(); ++i) {
@@ -73,14 +89,17 @@ class UkkonenTernaryTree {
         current = current->right;
       }
       
-      if (!current) return false;
+      if (!current) {
+        return nullptr;
+      }
     }
 
-    return true;
+    return current;
   }
 
  private:
   UkkonenTTreeNode *root_;
+  int num_states_;
 };
 
 void NextColumn(const std::vector<int> &current, const std::string &pattern, char b,
@@ -98,10 +117,50 @@ void NextColumn(const std::vector<int> &current, const std::string &pattern, cha
   }
 }
 
+// TODO(Mateus): only supports ASCII (same thing from bad-character table on boyer_moore.cpp).
 void BuildUkkonenAFD(const std::string &pattern, const std::string &text, int max_edit_distance,
                      std::unordered_map<std::pair<int, char>, int, PairHash> *delta,
                      std::unordered_set<int> *final_states) {
-  // TODO(Mateus): pensar em uma implementação eficiente para INDEX(S).
+  int m = static_cast<int>(pattern.size());
+  if (m <= max_edit_distance) {
+    final_states->insert(0);
+  }
+
+  std::string alphabet = RemoveRepeatedLetters(pattern + text);
+  std::vector<int> current(m + 1);
+  std::vector<int> next(m + 1, 0);
+  UkkonenTernaryTree Q;
+
+  std::iota(current.begin(), current.end(), 0);
+  Q.InsertState(current);
+
+  std::deque<UkkonenTTreeNode*> N(1, Q.SearchState(current));
+  int i = 0;
+
+  while (!N.empty()) {
+    UkkonenTTreeNode *node = N.front();
+    N.pop_front();
+    std::copy(node->state.begin(), node->state.end(), current.begin());
+
+    for (size_t j = 0; j < alphabet.size(); ++j) {
+      NextColumn(current, pattern, alphabet[j], max_edit_distance, &next);
+      UkkonenTTreeNode *next_node = Q.SearchState(next);
+
+      if (!next_node) {
+        Q.InsertState(next);
+        N.push_back(Q.SearchState(next));
+        ++i;
+
+        if (next[m] <= max_edit_distance) {
+          final_states->insert(i);
+        }
+
+        (*delta)[std::make_pair(node->label, alphabet[j])] = i;
+      } else {
+        (*delta)[std::make_pair(node->label, alphabet[j])] = next_node->label;
+      }
+    }
+  }
 }
 
 }  // namespace
@@ -116,6 +175,10 @@ std::vector<int> UkkonenStringMatcher(const std::string &pattern, const std::str
 
   std::vector<int> occurrences;
   int q = 0;
+
+  if (final_states.find(q) != final_states.end()) {
+    occurrences.push_back(0);
+  }
 
   for (int j = 0; j < n; ++j) {
     q = delta[std::make_pair(q, text[j])];

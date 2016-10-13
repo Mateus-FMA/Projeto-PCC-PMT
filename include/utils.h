@@ -8,6 +8,7 @@ namespace pmt {
 
 std::string RemoveRepeatedLetters(const std::string &str);
 std::string PrintOccurrences(const std::vector<int> &occurrences);
+std::vector<std::string> GetFilenames(const std::string &pattern);
 
 }  // namespace pmt
 

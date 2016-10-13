@@ -6,9 +6,20 @@
 
 namespace pmt {
 
-std::vector<int> KMPStringMatcher(const std::string &pattern, const std::string &text);
-std::vector<int> KMPMultiStringMatcher(const std::string &pattern,
-                                       const std::vector<std::string> &text_list);
+class KMPStringMatcher {
+ public:
+  explicit KMPStringMatcher(const std::string &pattern);
+  ~KMPStringMatcher() {}
+
+  std::vector<int> FindOccurrences(const std::string &text);
+  void Reset(const std::string &pattern);
+
+ private:
+  void ComputeStrictBorderTable();
+  
+  std::string pattern_;
+  std::vector<int> s_bord_;
+};
 
 }  // namespace pmt
 

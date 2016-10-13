@@ -6,9 +6,26 @@
 #include "utils.h"
 
 namespace pmt {
-namespace {
 
-std::vector<int> ComputeBorderTable(const std::string &pattern) {
+BoyerMooreStringMatcher::BoyerMooreStringMatcher(const std::string &pattern)
+    : good_suffix_(pattern.size() + 1, static_cast<int>(pattern.size())),
+      pattern_(pattern) {
+  ComputeGoodSuffixTable();
+}
+
+// TODO(Mateus): implement this function so it may support non-ASCII characters. Must also find
+// a more elegant way to write this, if possible...
+void BoyerMooreStringMatcher::ComputeBadCharacterTable(const std::string &alphabet) {
+  for (size_t i = 0; i < alphabet.size(); ++i) {
+    bad_character_[alphabet[i]] = -1;
+  }
+
+  for (size_t i = 0; i < pattern_.size(); ++i) {
+    bad_character_[pattern_[i]] = i;
+  }
+}
+
+std::vector<int> BoyerMooreStringMatcher::ComputeBorderTable(const std::string &pattern) {
   int m = static_cast<int>(pattern.size());
   std::vector<int> bord(m + 1, -1);
 
@@ -30,14 +47,12 @@ std::vector<int> ComputeBorderTable(const std::string &pattern) {
   return bord;
 }
 
-std::vector<int> ComputeGoodSuffixTable(const std::string &pattern) {
-  int m = static_cast<int>(pattern.size());
-  std::string pattern_r(pattern);
+void BoyerMooreStringMatcher::ComputeGoodSuffixTable() {
+  int m = static_cast<int>(pattern_.size());
+  std::string pattern_r(pattern_);
 
   std::reverse(pattern_r.begin(), pattern_r.end());
-
   std::vector<int> bord_r = ComputeBorderTable(pattern_r);
-  std::vector<int> good_suffix(m + 1, m + 1);
 
   // Preprocessing 1 - find the length N of the LCS between pattern[:j] and pattern. If it exists,
   // then N = m - l + bord_r[l], 1 <= l < m, and good_shift[j] = m - N (where j = m -  bord_r[l])
@@ -46,8 +61,8 @@ std::vector<int> ComputeGoodSuffixTable(const std::string &pattern) {
     int j = m - bord_r[l];
     int s = l - bord_r[l];
 
-    if (pattern[j - s - 1] != pattern[j - 1]) {
-      good_suffix[j] = good_suffix[j] < s ? good_suffix[j] : s;
+    if (pattern_[j - s - 1] != pattern_[j - 1]) {
+      good_suffix_[j] = good_suffix_[j] < s ? good_suffix_[j] : s;
     }
   }
 
@@ -63,37 +78,18 @@ std::vector<int> ComputeGoodSuffixTable(const std::string &pattern) {
     int s = m - t;
 
     for (int j = q; j <= s; ++j) {
-      good_suffix[j] = good_suffix[j] < s ? good_suffix[j] : s; 
+      good_suffix_[j] = good_suffix_[j] < s ? good_suffix_[j] : s; 
     }
 
     q = s + 1;
     t = bord_r[t];
   }
-
-  return good_suffix;
 }
 
-// TODO(Mateus): implement this function so it may support non-ASCII characters. Must also find
-// a more elegant way to write this, if possible...
-std::unordered_map<char, int> ComputeBadCharacterTable(const std::string &pattern,
-                                                       const std::string &alphabet) {
-  std::unordered_map<char, int> bad_character;
+std::vector<int> BoyerMooreStringMatcher::FindOccurrences(const std::string &text) {
+  ComputeBadCharacterTable(RemoveRepeatedLetters(pattern_ + text));
 
-  for (size_t i = 0; i < alphabet.size(); ++i) {
-    bad_character[alphabet[i]] = -1;
-  }
-
-  for (size_t i = 0; i < pattern.size(); ++i) {
-    bad_character[pattern[i]] = i;
-  }
-
-  return bad_character;
-}
-
-std::vector<int> BoyerMooreStringMatcher(const std::string &pattern, const std::string &text,
-                                         const std::unordered_map<char, int> &bad_character,
-                                         const std::vector<int> &good_suffix) {
-  int m = static_cast<int>(pattern.size());
+  int m = static_cast<int>(pattern_.size());
   int n = static_cast<int>(text.size());
 
   int i = 0;
@@ -102,16 +98,16 @@ std::vector<int> BoyerMooreStringMatcher(const std::string &pattern, const std::
   while (i <= n - m) {
     int j = m - 1;
 
-    while (j >= 0 && pattern[j] == text[i + j]) {
+    while (j >= 0 && pattern_[j] == text[i + j]) {
       --j;
     }
 
     if (j < 0) {
       occurrences.push_back(i);
-      i += good_suffix[0];
+      i += good_suffix_[0];
     } else {
-      int gs_shift = good_suffix[j + 1];
-      int bc_shift = j - bad_character.at(text[i + j]);
+      int gs_shift = good_suffix_[j + 1];
+      int bc_shift = j - bad_character_.at(text[i + j]);
       i += gs_shift > bc_shift ? gs_shift : bc_shift;
     }
   }
@@ -119,35 +115,12 @@ std::vector<int> BoyerMooreStringMatcher(const std::string &pattern, const std::
   return occurrences;
 }
 
-}  // namespace
-
-std::vector<int> BoyerMooreStringMatcher(const std::string &pattern, const std::string &text) {
-  std::string alphabet = RemoveRepeatedLetters(pattern + text);
-
-  return BoyerMooreStringMatcher(pattern, text, ComputeBadCharacterTable(pattern, alphabet),
-                                 ComputeGoodSuffixTable(pattern));
-}
-
-std::vector<int> BoyerMooreMultiStringMatcher(const std::string &pattern,
-                                              const std::vector<std::string> &text_list) {
-  std::string all_chars = pattern;
-
-  for (size_t i = 0; i < text_list.size(); ++i) {
-    all_chars += text_list[i];
+void BoyerMooreStringMatcher::Reset(const std::string &pattern) {
+  if (pattern_.compare(pattern) != 0) {
+    pattern_ = pattern;
+    std::fill(good_suffix_.begin(), good_suffix_.end(), static_cast<int>(pattern.size()));
+    ComputeGoodSuffixTable();
   }
-
-  std::string alphabet = RemoveRepeatedLetters(all_chars);
-  std::unordered_map<char, int> bad_character = ComputeBadCharacterTable(pattern, alphabet);
-  std::vector<int> good_suffix = ComputeGoodSuffixTable(pattern);
-  std::vector<int> occurrences;
-
-  for (size_t i = 0; i < text_list.size(); ++i) {
-    std::vector<int> tmp = BoyerMooreStringMatcher(pattern, text_list[i], bad_character,
-                                                   good_suffix);
-    occurrences.insert(occurrences.end(), tmp.begin(), tmp.end());
-  }
-
-  return occurrences;
 }
 
 }  // namespace pmt

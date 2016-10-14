@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     {"algorithm", required_argument, nullptr, 'a'},
     {"count", no_argument, nullptr, 'c'},
     {"edit", required_argument, nullptr, 'e'},
-    {"pattern", required_argument, nullptr, 'p'}
+    {"pattern", no_argument, nullptr, 'p'}
   };
 
   int c = 0;
@@ -56,11 +56,14 @@ int main(int argc, char *argv[]) {
   StringMatcher algorithm = StringMatcher::kDefault;
   int max_edit_distance = -1;
   bool num_occurrences_only = false;
+  bool read_pattern_files = false;
   std::string option_arg;
-  std::vector<std::string> pattern_files;
   size_t sz;
 
-  while ((c = getopt_long(argc, argv, "a:ce:hp:", long_options, &option_index)) != -1) {
+  // #######################
+  // ### Process options ###
+  // #######################
+  while ((c = getopt_long(argc, argv, "a:ce:hp", long_options, &option_index)) != -1) {
     switch (c) {
       case 'a':
         option_arg = optarg;
@@ -112,9 +115,7 @@ int main(int argc, char *argv[]) {
         return 0;
 
       case 'p':
-        option_arg = optarg;
-        pattern_files = pmt::GetFilenames(option_arg);
-
+        read_pattern_files = true;
         break;
 
       default:
@@ -122,7 +123,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
   }
-  
+
+  // ####################################
+  // ### Perform remaining validation ###
+  // ####################################
   if (max_edit_distance >= 0 && (algorithm == StringMatcher::kBoyerMoore ||
       algorithm == StringMatcher::kKnuthMorrisPratt)) {
     std::cout << "Program exited with code 2: cannot use KMP or Boyer-Moore algorithms on "
@@ -143,9 +147,11 @@ int main(int argc, char *argv[]) {
     return 4;
   }
 
+  // ####################################
+  // ### Read patterns from arguments ###
+  // ####################################
   std::vector<std::string> patterns;
-
-  if (pattern_files.empty()) {
+  if (!read_pattern_files) {
     patterns.push_back(argv[optind++]);
 
     if (optind >= argc) {
@@ -154,6 +160,7 @@ int main(int argc, char *argv[]) {
       return 4;
     }
   } else {
+    std::vector<std::string> pattern_files = pmt::GetFilenames(argv[optind++]);
     for (size_t i = 0; i < pattern_files.size(); ++i) {
       std::ifstream ifs(pattern_files[i], std::ifstream::binary);
       if (!ifs) {
@@ -170,60 +177,77 @@ int main(int argc, char *argv[]) {
       ifs.close();
     }
   }
-  
-  pmt::KMPStringMatcher *kmp = nullptr;
-  pmt::BoyerMooreStringMatcher *bm = nullptr;
 
+  // ####################################################
+  // ### For each file, find matches for all patterns ###
+  // ####################################################
+  size_t files = 0;
   const int kMaxSize = 1 << 20;  // 1 MB.
   std::array<char, kMaxSize> buffer;
 
-  for (size_t i = 0; i < patterns.size(); ++i) {
-    std::vector<int> occurrences;
-    // Read all text files and return the occurrences of the current pattern for each file.
-    for (int j = optind; j < argc; ++j) {
-      std::ifstream ifs(argv[j], std::ifstream::binary);
+  for (int i = optind; i < argc; ++i) {
+    std::vector<std::string> text_files = pmt::GetFilenames(argv[i]);
+    
+    for (size_t tf = 0; tf < text_files.size(); ++tf) {
+      //std::vector<std::string> text_lines;
+      std::ifstream ifs(text_files[tf], std::ifstream::binary);
       if (!ifs) {
         std::cout << "Program exited with code 5: cannot open file(s) from argument list."
             << std::endl;
         return 5;
       }
 
-      while (ifs.get(buffer.data(), kMaxSize, '\0')) {
-        std::vector<int> partial_occ;
-        
+      std::string text( (std::istreambuf_iterator<char>(ifs) ),
+                        (std::istreambuf_iterator<char>() ) );
+      //std::string text_alphabet;
+
+      //while (ifs.get(buffer.data(), kMaxSize, '\0')) {
+        //text_lines.push_back(line);
+        //text_alphabet = pmt::RemoveRepeatedLetters(line + text_alphabet);
+      //}
+
+      ifs.close();
+      //if (text_lines.empty()) continue;
+      if (text.empty()) continue;
+      size_t total = 0;
+
+      for (size_t j = 0; j < patterns.size(); ++j) {
+        std::vector<int> occurrences;
         if (max_edit_distance < 0) {  // Exact string matching.
           switch (algorithm) {
             case StringMatcher::kBoyerMoore:
-              if (!bm) {
-                bm = new pmt::BoyerMooreStringMatcher(patterns[i]);
-              } else {
-                bm->Reset(patterns[i]);
-              }
-
-              partial_occ = bm->FindOccurrences(buffer.data());
+              //occurrences = text_lines.size() > 1 ?
+              //      pmt::BoyerMooreMultiStringMatcher(patterns[j], text_lines) :
+              //      pmt::BoyerMooreStringMatcher(patterns[j], text_lines[0]);
+              occurrences = pmt::BoyerMooreStringMatcher(patterns[j], text);
               break;
 
             case StringMatcher::kKnuthMorrisPratt:
-              if (!kmp) {
-                kmp = new pmt::KMPStringMatcher(patterns[i]);
-              } else {
-                kmp->Reset(patterns[i]);
-              }
-
-              partial_occ = kmp->FindOccurrences(buffer.data());
+//              occurrences = text_lines.size() > 1 ?
+//                    pmt::KMPMultiStringMatcher(patterns[j], text_lines) :
+//                    pmt::KMPStringMatcher(patterns[j], text_lines[0]);
+              occurrences = pmt::KMPStringMatcher(patterns[j], text);
               break;
 
             default:  // The default approach of this tool for exact string matching.
-              if (patterns[i].size() <= 1) {
-                partial_occ = pmt::BruteForceStringMatcher(patterns[i], buffer.data());
+              if (patterns[j].size() <= 1) {
+//                for (size_t k = 0; k < text_lines.size(); ++k) {
+//                  std::vector<int> tmp = pmt::BruteForceStringMatcher(patterns[j], text_lines[k]);
+//                  occurrences.insert(occurrences.end(), tmp.begin(), tmp.end());
+//                }
+                occurrences = pmt::BruteForceStringMatcher(patterns[j], text);
               } else {
-                if (!bm) {
-                  bm = new pmt::BoyerMooreStringMatcher(patterns[i]);
+                if (patterns[j].size() > 5) {
+//                  occurrences = text_lines.size() > 1 ?
+//                      pmt::BoyerMooreMultiStringMatcher(patterns[j], text_lines) :
+//                      pmt::BoyerMooreStringMatcher(patterns[j], text_lines[0]);
+                  occurrences = pmt::BoyerMooreStringMatcher(patterns[j], text);
                 } else {
-                  bm->Reset(patterns[i]);
+//                  occurrences = text_lines.size() > 1 ?
+//                      pmt::KMPMultiStringMatcher(patterns[j], text_lines) :
+//                      pmt::KMPStringMatcher(patterns[j], text_lines[0]);
+                  occurrences = pmt::KMPStringMatcher(patterns[j], text);
                 }
-
-                partial_occ = bm->FindOccurrences(buffer.data());
               }
 
               break;
@@ -235,42 +259,47 @@ int main(int argc, char *argv[]) {
               break;
 
             case StringMatcher::kUkkonen:
-              partial_occ = pmt::UkkonenStringMatcher(patterns[i], buffer.data(),
-                                                      max_edit_distance);
+//              for (size_t k = 0; k < text_lines.size(); ++k) {
+//                std::vector<int> tmp = pmt::UkkonenStringMatcher(patterns[j], text_lines[k],
+//                                                                 max_edit_distance);
+//                occurrences.insert(occurrences.end(), tmp.begin(), tmp.end());
+//              }
+              occurrences = pmt::UkkonenStringMatcher(patterns[j], text, max_edit_distance);
               break;
 
             default:  // The default approach of this tool for approximate string matching.
               // TODO(Mateus): add Sellers algorithm here later.
-              partial_occ = pmt::UkkonenStringMatcher(patterns[i], buffer.data(),
-                                                      max_edit_distance);
+//              for (size_t k = 0; k < text_lines.size(); ++k) {
+//                std::vector<int> tmp = pmt::UkkonenStringMatcher(patterns[j], text_lines[k],
+//                                                                 max_edit_distance);
+//                occurrences.insert(occurrences.end(), tmp.begin(), tmp.end());
+//              }
+              occurrences = pmt::UkkonenStringMatcher(patterns[j], text, max_edit_distance);
               break;
           }
 
-          std::transform(partial_occ.begin(), partial_occ.end(), partial_occ.begin(),
-                         [&patterns, i] (int val) -> int { 
-                            return val + 1 - patterns[i].size() > 0 ?
-                                   val + 1 - patterns[i].size() : 0;
+          std::transform(occurrences.begin(), occurrences.end(), occurrences.begin(),
+                         [&patterns, j] (int val) -> int { 
+                            return val + 1 - patterns[j].size() > 0 ?
+                                   val + 1 - patterns[j].size() : 0;
                          });
         }
 
-        occurrences.insert(occurrences.end(), partial_occ.begin(), partial_occ.end());
+//        std::cout << "  Padrão " << j + 1 << ": ";
+
+        if (!num_occurrences_only) {
+          std::cout << pmt::PrintOccurrences(occurrences) << std::endl;
+        } //else {
+//          std::cout << occurrences.size() << std::endl;
+//        }
+
+        total += occurrences.size();
       }
 
-      ifs.close();
-    }
-
-    std::cout << "  Padrão " << i + 1 << ": ";
-
-    if (num_occurrences_only) {
-      std::cout << occurrences.size() << std::endl;
-    } else {
-      std::cout << pmt::PrintOccurrences(occurrences) << std::endl;
+      std::cout << "FILE " << files + i - optind + 1 << ": " << total << std::endl;
+      files += text_files.size();
     }
   }
-  
-
-  delete kmp;
-  delete bm;
 
   return 0;
 }

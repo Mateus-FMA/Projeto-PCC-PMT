@@ -10,6 +10,7 @@
 #include "boyer_moore.h"
 #include "brute_force.h"
 #include "kmp.h"
+#include "sellers.h"
 #include "ukkonen.h"
 #include "utils.h"
 
@@ -182,14 +183,13 @@ int main(int argc, char *argv[]) {
   // ### For each file, find matches for all patterns ###
   // ####################################################
   size_t files = 0;
-  const int kMaxSize = 1 << 20;  // 1 MB.
-  std::array<char, kMaxSize> buffer;
+  const int kMaxSize = 1 << 23;  // 8 MB.
+  std::vector<char> buffer(kMaxSize);
 
   for (int i = optind; i < argc; ++i) {
     std::vector<std::string> text_files = pmt::GetFilenames(argv[i]);
     
     for (size_t tf = 0; tf < text_files.size(); ++tf) {
-      //std::vector<std::string> text_lines;
       std::ifstream ifs(text_files[tf], std::ifstream::binary);
       if (!ifs) {
         std::cout << "Program exited with code 5: cannot open file(s) from argument list."
@@ -197,106 +197,90 @@ int main(int argc, char *argv[]) {
         return 5;
       }
 
-      std::string text( (std::istreambuf_iterator<char>(ifs) ),
-                        (std::istreambuf_iterator<char>() ) );
-      //std::string text_alphabet;
-
-      //while (ifs.get(buffer.data(), kMaxSize, '\0')) {
-        //text_lines.push_back(line);
-        //text_alphabet = pmt::RemoveRepeatedLetters(line + text_alphabet);
-      //}
-
-      ifs.close();
-      //if (text_lines.empty()) continue;
-      if (text.empty()) continue;
       size_t total = 0;
+      size_t pos = 0;
 
-      for (size_t j = 0; j < patterns.size(); ++j) {
-        std::vector<int> occurrences;
-        if (max_edit_distance < 0) {  // Exact string matching.
-          switch (algorithm) {
-            case StringMatcher::kBoyerMoore:
-              //occurrences = text_lines.size() > 1 ?
-              //      pmt::BoyerMooreMultiStringMatcher(patterns[j], text_lines) :
-              //      pmt::BoyerMooreStringMatcher(patterns[j], text_lines[0]);
-              occurrences = pmt::BoyerMooreStringMatcher(patterns[j], text);
-              break;
+      while (!ifs.eof()) {
+        std::string line;
+        int size = 0;
 
-            case StringMatcher::kKnuthMorrisPratt:
-//              occurrences = text_lines.size() > 1 ?
-//                    pmt::KMPMultiStringMatcher(patterns[j], text_lines) :
-//                    pmt::KMPStringMatcher(patterns[j], text_lines[0]);
-              occurrences = pmt::KMPStringMatcher(patterns[j], text);
-              break;
-
-            default:  // The default approach of this tool for exact string matching.
-              if (patterns[j].size() <= 1) {
-//                for (size_t k = 0; k < text_lines.size(); ++k) {
-//                  std::vector<int> tmp = pmt::BruteForceStringMatcher(patterns[j], text_lines[k]);
-//                  occurrences.insert(occurrences.end(), tmp.begin(), tmp.end());
-//                }
-                occurrences = pmt::BruteForceStringMatcher(patterns[j], text);
-              } else {
-                if (patterns[j].size() > 5) {
-//                  occurrences = text_lines.size() > 1 ?
-//                      pmt::BoyerMooreMultiStringMatcher(patterns[j], text_lines) :
-//                      pmt::BoyerMooreStringMatcher(patterns[j], text_lines[0]);
-                  occurrences = pmt::BoyerMooreStringMatcher(patterns[j], text);
-                } else {
-//                  occurrences = text_lines.size() > 1 ?
-//                      pmt::KMPMultiStringMatcher(patterns[j], text_lines) :
-//                      pmt::KMPStringMatcher(patterns[j], text_lines[0]);
-                  occurrences = pmt::KMPStringMatcher(patterns[j], text);
-                }
-              }
-
-              break;
+        while (std::getline(ifs, line)) {
+          line += "\n";
+          int tmp = size + static_cast<int>(line.size());
+          if (tmp < kMaxSize) {
+            std::copy(line.begin(), line.end(), buffer.begin() + size);
+	          size = tmp;
+          } else {
+            ifs.clear();
+            ifs.seekg(pos);
+            break;
           }
-        } else {  // Approximate string matching.
-          switch (algorithm) {
-            case StringMatcher::kSellers:
-              // TODO(Mateus): add Sellers algorithm here later.
-              break;
-
-            case StringMatcher::kUkkonen:
-//              for (size_t k = 0; k < text_lines.size(); ++k) {
-//                std::vector<int> tmp = pmt::UkkonenStringMatcher(patterns[j], text_lines[k],
-//                                                                 max_edit_distance);
-//                occurrences.insert(occurrences.end(), tmp.begin(), tmp.end());
-//              }
-              occurrences = pmt::UkkonenStringMatcher(patterns[j], text, max_edit_distance);
-              break;
-
-            default:  // The default approach of this tool for approximate string matching.
-              // TODO(Mateus): add Sellers algorithm here later.
-//              for (size_t k = 0; k < text_lines.size(); ++k) {
-//                std::vector<int> tmp = pmt::UkkonenStringMatcher(patterns[j], text_lines[k],
-//                                                                 max_edit_distance);
-//                occurrences.insert(occurrences.end(), tmp.begin(), tmp.end());
-//              }
-              occurrences = pmt::UkkonenStringMatcher(patterns[j], text, max_edit_distance);
-              break;
-          }
-
-          std::transform(occurrences.begin(), occurrences.end(), occurrences.begin(),
-                         [&patterns, j] (int val) -> int { 
-                            return val + 1 - patterns[j].size() > 0 ?
-                                   val + 1 - patterns[j].size() : 0;
-                         });
+          
+          pos = ifs.tellg();
         }
+        
+        for (size_t j = 0; j < patterns.size(); ++j) {
+          std::vector<int> occurrences;
+          if (max_edit_distance < 0) {  // Exact string matching.
+            switch (algorithm) {
+              case StringMatcher::kBoyerMoore:
+                occurrences = pmt::BoyerMooreStringMatcher(patterns[j], buffer.data());
+                break;
 
-//        std::cout << "  Padrão " << j + 1 << ": ";
+              case StringMatcher::kKnuthMorrisPratt:
+                occurrences = pmt::KMPStringMatcher(patterns[j], buffer.data());
+                break;
 
-        if (!num_occurrences_only) {
-          std::cout << pmt::PrintOccurrences(occurrences) << std::endl;
-        } //else {
-//          std::cout << occurrences.size() << std::endl;
-//        }
+              default:  // The default approach of this tool for exact string matching.
+                if (patterns[j].size() <= 1) {
+                  occurrences = pmt::BruteForceStringMatcher(patterns[j], buffer.data());
+                } else {
+                  if (patterns[j].size() > 5) {
+                    occurrences = pmt::BoyerMooreStringMatcher(patterns[j], buffer.data());
+                  } else {
+                    occurrences = pmt::KMPStringMatcher(patterns[j], buffer.data());
+                  }
+                }
 
-        total += occurrences.size();
+                break;
+            }
+          } else {  // Approximate string matching.
+            switch (algorithm) {
+              case StringMatcher::kSellers:
+                // TODO(Mateus): add Sellers algorithm here later.
+                occurrences = pmt::SellersStringMatcher(patterns[j], buffer.data(),
+                                                        max_edit_distance);
+                break;
+
+              case StringMatcher::kUkkonen:
+                occurrences = pmt::UkkonenStringMatcher(patterns[j], buffer.data(),
+                                                        max_edit_distance);
+                break;
+
+              default:  // The default approach of this tool for approximate string matching.
+                occurrences = pmt::SellersStringMatcher(patterns[j], buffer.data(),
+                                                        max_edit_distance);
+                break;
+            }
+
+            std::transform(occurrences.begin(), occurrences.end(), occurrences.begin(),
+                           [&patterns, j] (int val) -> int { 
+                              return val + 1 - patterns[j].size() > 0 ?
+                                     val + 1 - patterns[j].size() : 0;
+                           });
+          }
+
+          if (!num_occurrences_only) {
+            std::cout << pmt::PrintOccurrences(occurrences) << std::endl;
+          }
+
+          total += occurrences.size();
+        }
+        
+        std::fill(buffer.begin(), buffer.end(), '\0');
       }
 
-      std::cout << "FILE " << files + i - optind + 1 << ": " << total << std::endl;
+      std::cout << text_files[tf] << ":" << total << std::endl;
       files += text_files.size();
     }
   }

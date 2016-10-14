@@ -37,7 +37,7 @@ std::vector<int> ComputeGoodSuffixTable(const std::string &pattern) {
   std::reverse(pattern_r.begin(), pattern_r.end());
 
   std::vector<int> bord_r = ComputeBorderTable(pattern_r);
-  std::vector<int> good_suffix(m + 1, m + 1);
+  std::vector<int> good_suffix(m + 1, m);
 
   // Preprocessing 1 - find the length N of the LCS between pattern[:j] and pattern. If it exists,
   // then N = m - l + bord_r[l], 1 <= l < m, and good_shift[j] = m - N (where j = m -  bord_r[l])

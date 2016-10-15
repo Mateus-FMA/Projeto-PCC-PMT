@@ -1,6 +1,7 @@
 #include "sellers.h"
 
 #include <algorithm>
+#include <array>
 #include <numeric>
 
 namespace pmt {

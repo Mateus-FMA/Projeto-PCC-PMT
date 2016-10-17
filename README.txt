@@ -37,6 +37,6 @@ Opções disponíveis:
 
   `-e --edit`         Determina a distância de edição máxima para buscas aproximadas.
 
-  `-p --pattern`      Especifica um arquivo de texto contendo múltiplos parâmetros. Caso essa opção
-                      seja habilitada, o parâmetro obrigatório `pattern` é considerado como sendo
-                      um arquivo de texto.
+  `-p --pattern`      Especifica um arquivo de texto contendo múltiplos parâmetros. Caso essa
+                      opção seja habilitada, o parâmetro obrigatório `pattern` é considerado
+                      como sendo um arquivo de texto.

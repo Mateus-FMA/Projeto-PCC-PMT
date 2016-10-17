@@ -182,13 +182,17 @@ int main(int argc, char *argv[]) {
   // ####################################################
   // ### For each file, find matches for all patterns ###
   // ####################################################
-  size_t files = 0;
+  bool has_multiple_text_files = (argc - optind) > 1; 
   const int kMaxSize = 1 << 23;  // 8 MB.
   std::vector<char> buffer(kMaxSize);
+  
+  pmt::KMPStringMatcher kmp;
+  pmt::BoyerMooreStringMatcher bm;
 
   for (int i = optind; i < argc; ++i) {
     std::vector<std::string> text_files = pmt::GetFilenames(argv[i]);
-    
+    has_multiple_text_files |= text_files.size() > 1;
+
     for (size_t tf = 0; tf < text_files.size(); ++tf) {
       std::ifstream ifs(text_files[tf], std::ifstream::binary);
       if (!ifs) {
@@ -224,22 +228,23 @@ int main(int argc, char *argv[]) {
           if (max_edit_distance < 0) {  // Exact string matching.
             switch (algorithm) {
               case StringMatcher::kBoyerMoore:
-                occurrences = pmt::BoyerMooreStringMatcher(patterns[j], buffer.data());
+                bm.SetPattern(patterns[j]);
+                occurrences = bm.FindOccurrences(buffer.data());
                 break;
 
               case StringMatcher::kKnuthMorrisPratt:
-                occurrences = pmt::KMPStringMatcher(patterns[j], buffer.data());
+                kmp.SetPattern(patterns[j]);
+                occurrences = kmp.FindOccurrences(buffer.data());
                 break;
 
               default:  // The default approach of this tool for exact string matching.
                 if (patterns[j].size() <= 1) {
                   occurrences = pmt::BruteForceStringMatcher(patterns[j], buffer.data());
                 } else {
-                  if (patterns[j].size() > 5) {
-                    occurrences = pmt::BoyerMooreStringMatcher(patterns[j], buffer.data());
-                  } else {
-                    occurrences = pmt::KMPStringMatcher(patterns[j], buffer.data());
-                  }
+                  // Since alphabet is already set to be ASCII in this application, we use the
+                  // Boyer-Moore algorithm as default.
+                  bm.SetPattern(patterns[j]);
+                  occurrences = bm.FindOccurrences(buffer.data());
                 }
 
                 break;
@@ -247,7 +252,6 @@ int main(int argc, char *argv[]) {
           } else {  // Approximate string matching.
             switch (algorithm) {
               case StringMatcher::kSellers:
-                // TODO(Mateus): add Sellers algorithm here later.
                 occurrences = pmt::SellersStringMatcher(patterns[j], buffer.data(),
                                                         max_edit_distance);
                 break;
@@ -271,7 +275,9 @@ int main(int argc, char *argv[]) {
           }
 
           if (!num_occurrences_only) {
-            std::cout << pmt::PrintOccurrences(occurrences) << std::endl;
+            std::cout << pmt::PrintOccurrences(occurrences, buffer.data(),
+                                               static_cast<int>(patterns[j].size()));
+            std::cout << std::endl;
           }
 
           total += occurrences.size();
@@ -280,8 +286,11 @@ int main(int argc, char *argv[]) {
         std::fill(buffer.begin(), buffer.end(), '\0');
       }
 
-      std::cout << text_files[tf] << ":" << total << std::endl;
-      files += text_files.size();
+      if (has_multiple_text_files && num_occurrences_only) {
+        std::cout << text_files[tf] << ":" << total << std::endl;
+      } else if (num_occurrences_only) {
+        std::cout << total << std::endl;
+      }
     }
   }
 

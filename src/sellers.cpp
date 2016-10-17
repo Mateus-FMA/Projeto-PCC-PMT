@@ -34,7 +34,7 @@ std::vector<int> SellersStringMatcher(const std::string &pattern, const std::str
       occurrences.push_back(j);
     }
 
-    std::copy(next_col.begin(), next_col.end(), current_col.begin());
+    current_col.swap(next_col);
   }
 
   return occurrences;

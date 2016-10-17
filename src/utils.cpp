@@ -10,6 +10,13 @@
 #include <iostream>
 
 namespace pmt {
+namespace {
+
+const std::string kANSIRedColor = "\033[31m";
+const std::string kANSIResetAll = "\033[0m";
+
+}  // namespace
+
 
 std::string RemoveRepeatedLetters(const std::string &str) {
   std::unordered_map<char, int> container;
@@ -20,17 +27,44 @@ std::string RemoveRepeatedLetters(const std::string &str) {
   return oss.str();
 }
 
-std::string PrintOccurrences(const std::vector<int> &occurrences) {
+std::string PrintOccurrences(const std::vector<int> &occurrences, const std::string &text,
+                             int pattern_length) {
   std::ostringstream oss;
-  oss << "{";
+  int line_start = 0;
+  int last_idx = 0;
 
-  if (!occurrences.empty()) {
-    std::copy(occurrences.begin(), occurrences.end() - 1,
-              std::ostream_iterator<size_t>(oss, ", "));
-    oss << occurrences.back();
+  for (size_t i = 0; i < text.size(); ++i) {
+    if (text[i] == '\n') {
+      bool has_occurrence = false;
+      int prev_last_idx = last_idx;
+
+      for (size_t j = last_idx; j < occurrences.size(); ++j) {
+        if (occurrences[j] > static_cast<int>(i)) {
+          last_idx = static_cast<int>(j);
+          break;
+        } else {
+          has_occurrence = true;
+          if (j == occurrences.size() - 1) last_idx = static_cast<int>(j + 1);
+        }
+      }
+
+      if (has_occurrence) {
+        int line_pos = line_start;
+        while (prev_last_idx < last_idx) {
+          oss << text.substr(line_pos, occurrences[prev_last_idx] - line_pos);
+          oss << kANSIRedColor << text.substr(occurrences[prev_last_idx], pattern_length)
+              << kANSIResetAll;
+
+          line_pos = occurrences[prev_last_idx] + pattern_length;
+          ++prev_last_idx;
+        }
+
+        oss << text.substr(line_pos, i - line_pos) << "\n";
+      }
+
+      line_start = static_cast<int>(i + 1);
+    }
   }
-
-  oss	<< "}";
 
   return oss.str();
 }

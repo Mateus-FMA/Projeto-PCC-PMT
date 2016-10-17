@@ -5,7 +5,6 @@
 #include <deque>
 #include <functional>
 #include <numeric>
-#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
@@ -14,12 +13,33 @@
 namespace pmt {
 namespace {
 
-// TODO(Mateus): although this solution is better than a sequential search on a vector/list on
-// average, it is still very prone to collisions. Check better implementations later.
-struct PairHash {
-  size_t operator() (const std::pair<int, char> &p) const {
-    return std::hash<int>()(p.first) ^ std::hash<char>()(p.second);
+// TODO(Mateus): only supports ASCII currently.
+class TransitionFunction {
+ public:
+  TransitionFunction() : rows_(0), cols_(0) {}
+  ~TransitionFunction() {}
+
+  int& operator()(int label, uchar c) {
+    int col = static_cast<int>(c);
+
+    if (rows_ <= label || cols_ <= col) {
+      int max_rows = std::max(rows_, (label + 1));
+      int max_cols = std::max(cols_, (col + 1));
+
+      table_.resize(max_rows * max_cols);
+      std::fill(table_.begin() + rows_ * cols_, table_.end(), -1);
+
+      rows_ = max_rows;
+      cols_ = max_cols;
+    }
+
+    return table_[label * cols_ + col];
   }
+
+ private:
+  std::vector<int> table_;
+  int rows_;
+  int cols_;
 };
 
 const int kNonLeafNode = -1;
@@ -119,8 +139,7 @@ void NextColumn(const std::vector<int> &current, const std::string &pattern, cha
 
 // TODO(Mateus): only supports ASCII (same thing from bad-character table on boyer_moore.cpp).
 void BuildUkkonenAFD(const std::string &pattern, const std::string &text, int max_edit_distance,
-                     std::unordered_map<std::pair<int, char>, int, PairHash> *delta,
-                     std::unordered_set<int> *final_states) {
+                     TransitionFunction *delta, std::unordered_set<int> *final_states) {
   int m = static_cast<int>(pattern.size());
   if (m <= max_edit_distance) {
     final_states->insert(0);
@@ -151,9 +170,9 @@ void BuildUkkonenAFD(const std::string &pattern, const std::string &text, int ma
           final_states->insert(i);
         }
 
-        (*delta)[std::make_pair(node->label, alphabet[j])] = i;
+        (*delta)(node->label, static_cast<uchar>(alphabet[j])) = i;
       } else {
-        (*delta)[std::make_pair(node->label, alphabet[j])] = next_node->label;
+        (*delta)(node->label, static_cast<uchar>(alphabet[j])) = next_node->label;
       }
     }
   }
@@ -164,7 +183,7 @@ void BuildUkkonenAFD(const std::string &pattern, const std::string &text, int ma
 std::vector<int> UkkonenStringMatcher(const std::string &pattern, const std::string &text,
                                       int max_edit_distance) {
   int n = static_cast<int>(text.size());
-  std::unordered_map<std::pair<int, char>, int, PairHash> delta;
+  TransitionFunction delta;
   std::unordered_set<int> final_states;
 
   BuildUkkonenAFD(pattern, text, max_edit_distance, &delta, &final_states);
@@ -172,12 +191,8 @@ std::vector<int> UkkonenStringMatcher(const std::string &pattern, const std::str
   std::vector<int> occurrences;
   int q = 0;
 
-  if (final_states.find(q) != final_states.end()) {
-    occurrences.push_back(0);
-  }
-
   for (int j = 0; j < n; ++j) {
-    q = delta[std::make_pair(q, text[j])];
+    q = delta(q, static_cast<uchar>(text[j]));
 
     if (final_states.find(q) != final_states.end()) {
       occurrences.push_back(j);
